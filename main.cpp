@@ -15,6 +15,7 @@
 using namespace std;
 
 bool fTestNet = false;
+bool fRegTest = false;
 
 class CDnsSeedOpts {
 public:
@@ -22,6 +23,7 @@ public:
   int nPort;
   int nDnsThreads;
   int fUseTestNet;
+  int fUseRegTest;
   int fWipeBan;
   int fWipeIgnore;
   const char *mbox;
@@ -33,7 +35,7 @@ public:
   const char *ipv6_proxy;
   std::set<uint64_t> filter_whitelist;
 
-  CDnsSeedOpts() : nThreads(96), nDnsThreads(4), ip_addr("::"), nPort(53), mbox(NULL), ns(NULL), host(NULL), tor(NULL), fUseTestNet(false), fWipeBan(false), fWipeIgnore(false), ipv4_proxy(NULL), ipv6_proxy(NULL) {}
+  CDnsSeedOpts() : nThreads(96), nDnsThreads(4), ip_addr("::"), nPort(53), mbox(NULL), ns(NULL), host(NULL), tor(NULL), fUseTestNet(false), fUseRegTest(false), fWipeBan(false), fWipeIgnore(false), ipv4_proxy(NULL), ipv6_proxy(NULL) {}
 
   void ParseCommandLine(int argc, char **argv) {
     static const char *help = "Bitcoin-seeder\n"
@@ -52,6 +54,7 @@ public:
                               "-k <ip:port>    IPV6 SOCKS5 proxy IP/Port\n"
                               "-w f1,f2,...    Allow these flag combinations as filters\n"
                               "--testnet       Use testnet\n"
+                              "--regtest       Use regtest\n"
                               "--wipeban       Wipe list of banned nodes\n"
                               "--wipeignore    Wipe list of ignored nodes\n"
                               "-?, --help      Show this text\n"
@@ -72,6 +75,7 @@ public:
         {"proxyipv6", required_argument, 0, 'k'},
         {"filter", required_argument, 0, 'w'},
         {"testnet", no_argument, &fUseTestNet, 1},
+        {"regtest", no_argument, &fUseRegTest, 1},
         {"wipeban", no_argument, &fWipeBan, 1},
         {"wipeignore", no_argument, &fWipeBan, 1},
         {"help", no_argument, 0, 'h'},
@@ -424,6 +428,7 @@ static const string testnet_seeds[] = {"testnet-seed.alexykot.me",
                                        "testnet-seed.bluematt.me",
                                        "testnet-seed.bitcoin.schildbach.de",
                                        ""};
+static const string regtest_seeds[] = {""};
 static const string *seeds = mainnet_seeds;
 
 extern "C" void* ThreadSeeder(void*) {
@@ -478,6 +483,10 @@ int main(int argc, char **argv) {
     }
   }
   bool fDNS = true;
+  if (opts.fUseTestNet && opts.fUseRegTest) {
+      printf("Cannot set testnet and regtest at the same time\n");
+      exit(1);
+  }
   if (opts.fUseTestNet) {
       printf("Using testnet.\n");
       pchMessageStart[0] = 0x0b;
@@ -486,6 +495,15 @@ int main(int argc, char **argv) {
       pchMessageStart[3] = 0x07;
       seeds = testnet_seeds;
       fTestNet = true;
+  }
+  if (opts.fUseRegTest) {
+      printf("Using regtest.\n");
+      pchMessageStart[0] = 0xfa;
+      pchMessageStart[1] = 0xbf;
+      pchMessageStart[2] = 0xb5;
+      pchMessageStart[3] = 0xda;
+      seeds = regtest_seeds;
+      fRegTest = true;
   }
   if (!opts.ns) {
     printf("No nameserver set. Not starting DNS server.\n");
